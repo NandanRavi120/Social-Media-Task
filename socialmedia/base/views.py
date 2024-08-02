@@ -187,42 +187,71 @@ class PostLikesView(View):
                     return JsonResponse({"count": count}, status=200)
                 except Post.DoesNotExist:
                     return JsonResponse({"error": "Post not Present"}, status=404)
+            else:
+                return JsonResponse({"error":"Enter Post to check Likes!!!"}, status=404)
         except Exception as e:
             return JsonResponse({"message":"Invalid Data"}, status=400)
-    # Multiple Likes in Post by User
-    def post(self, request, pk):
+
+    def post(self, request):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Login First"}, status=401)
+        data = json.loads(request.body)
+        like_type = data.get("like_type")
+        if like_type == "multiplelike":
+            return self.multipleLikes(request, data)
+        elif like_type == "singlelike":
+            pk = data.get("post_id")
+            return self.SingleLike(request, pk)
+        else:
+            return JsonResponse({"error":"An error occured here"}, status=400)
+
+    # Multiple Likes in Post by User
+    def multipleLikes(self, request, data):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Login First"}, status=401)
+    
+        pk = data.get("post_id")
         try:
             post = Post.objects.get(id=pk)
         except Post.DoesNotExist:
             return JsonResponse({"error": "Post not found."}, status=404)
+
         user = request.user
-        created_like = Likes.objects.create(post=post, user=user)
-        return JsonResponse({"message":"Like Added"}, status=200)
+
+        try:
+            like = Likes.objects.get(post=post, user=user, deleted_at=None)
+            if like.counter is None:
+                like.counter = 0
+            like.counter += 1
+            message = "Like Updated"
+        except Likes.DoesNotExist:
+            like = Likes.objects.create(post=post, user=user, counter=1)
+            message = "Like Added"
+        like.save()
+        return JsonResponse({"message": "Like Added", "counter": like.counter}, status=200)
 
     # Single Like in Post by User
-    # def post(self, request, pk=None):
-        # if not request.user.is_authenticated:
-        #     return JsonResponse({"error": "Login First"}, status=401)
-    #     if pk:
-    #         try:
-    #             post = Post.objects.get(pk=pk)
-    #             if post.deleted_at:
-    #                 return JsonResponse({"error": "Post Unavailable"}, status=404)
-    #             user = request.user.id
-    #             try:
-    #                 like = Likes.objects.get(user_id=user, post=post, deleted_at=None)
-    #                 if like.deleted_at is None:
-    #                     like.deleted_at = timezone.now()
-    #                     message = "Like Removed"
-    #                 like.save()
-    #             except Likes.DoesNotExist:
-    #                 like = Likes.objects.create(user_id=user, post=post)
-    #                 message = "Like Added"
-    #             return JsonResponse({"message": message}, status=200)
-    #         except Post.DoesNotExist:
-    #             return JsonResponse({"error": "Post not Present"}, status=404)
+    def SingleLike(self, request, pk=None):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Login First"}, status=401)
+        if pk:
+            try:
+                post = Post.objects.get(pk=pk)
+                if post.deleted_at:
+                    return JsonResponse({"error": "Post Unavailable"}, status=404)
+                user = request.user.id
+                try:
+                    like = Likes.objects.get(user_id=user, post=post, deleted_at=None)
+                    if like.deleted_at is None:
+                        like.deleted_at = timezone.now()
+                        message = "Like Removed"
+                    like.save()
+                except Likes.DoesNotExist:
+                    like = Likes.objects.create(user_id=user, post=post)
+                    message = "Like Added"
+                return JsonResponse({"message": message}, status=200)
+            except Post.DoesNotExist:
+                return JsonResponse({"error": "Post not Present"}, status=404)
 
 
 
@@ -323,6 +352,7 @@ class CommentsView(View):
         except Post.DoesNotExist:
             return JsonResponse({"error":"Post Not Found"}, status=404)
 
+
 @method_decorator(csrf_exempt, name="dispatch")
 class CommentLikesView(View):
     def get(self, request, pk=None):
@@ -361,10 +391,6 @@ class CommentLikesView(View):
                 return JsonResponse({"message": message}, status=200)
             except Comment.DoesNotExist:
                 return JsonResponse({"error": "Comment not Present"}, status=404)
-
-
-
-
 
 
 @method_decorator(csrf_exempt, name="dispatch")

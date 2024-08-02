@@ -65,6 +65,7 @@ class Post(models.Model):
 class Likes(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    counter = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     deleted_at = models.DateTimeField(null=True)
 
@@ -103,28 +104,3 @@ class CommentLike(models.Model):
         indexes = [models.Index(fields=["id", "comment"])]
 
 
-
-# class NestedComment(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)
-#     comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name="nested_comments")
-#     content = models.TextField()
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
-#     deleted_at = models.DateTimeField(null=True)
-
-# class NestedCommentLike(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)
-#     nested_comment = models.ForeignKey(NestedComment, on_delete=models.CASCADE)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
-#     deleted_at = models.DateTimeField(null=True)
-
-    # ADMIN = 'admin'
-    # NON_ADMIN = 'non-admin'
-    
-    # ROLE_CHOICES = [
-    #     (ADMIN, 'Admin'),
-    #     (NON_ADMIN, 'Non-Admin'),
-    # ]
-
-    # role = models.CharField(max_length=20, choices=ROLE_CHOICES)
