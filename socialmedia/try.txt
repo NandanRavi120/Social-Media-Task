@@ -1,0 +1,53 @@
+Steps....
+Model
+Create, Update and Delete should be add in every part
+1. User Register/Login[
+    -> Register(Admin, Normal User)
+    -> Admin should assign role to the User or User connected or not
+    -> User's Log with include of there timestamp
+]✔
+2. Post(
+    -> User should be LoggedIn
+    -> data will added by user(note, caption, tag)
+    -> data could be made private/public
+)✔
+3. Likes(
+    -> User should be LoggedIn
+    -> For like user should be present(user's id) and post id(post's id)
+)✔
+4. Comment(
+    -> User should be LoggedIn to comment
+    -> Post and User will be foregin key, 
+    -> Both Post and User Content, Check comment's Parent if Parent's comment is
+       present then User will reply to comment otherwise New comment will be created.
+)
+5. NestedComment(
+    -> User should be LoggedIn by post method
+    -> For nested comment User and Comment foregin key id should be present
+    -> Otherwise nestedcomment should not be done.
+)
+6. Comment Like(
+    -> User should be LoggedIn by post method
+    -> User and Comment model should be foregin key
+    -> 
+)
+7. Nested Comment Like(User, NestedComment will be foregin key)
+
+Views
+1. LoginView
+2. AddPostView(
+    if user is LoggedIn then user can do post with POST method
+)
+3. AddLikeView(
+    user should be LoggedIn and user can add like on post
+)
+4. AddCommentView(
+    LoggedIn user can add comment on post
+)
+5. AddNestedCommentView(
+    request.user, parent-comment.id
+)
+6. AddNestedCommentLikeView(
+    request.user, nested-comment.id
+)
+

@@ -70,10 +70,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'socialmedia.wsgi.application'
 
-AUTH_USER_MODEL = 'base.User'
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+
+AUTH_USER_MODEL = 'base.User'
 
 DATABASES = {
     'default': {
