@@ -20,18 +20,18 @@ Create, Update and Delete should be add in every part
     -> Post and User will be foregin key, 
     -> Both Post and User Content, Check comment's Parent if Parent's comment is
        present then User will reply to comment otherwise New comment will be created.
-)
+)✔
 5. NestedComment(
     -> User should be LoggedIn by post method
     -> For nested comment User and Comment foregin key id should be present
     -> Otherwise nestedcomment should not be done.
-)
+)✔
 6. Comment Like(
     -> User should be LoggedIn by post method
     -> User and Comment model should be foregin key
     -> 
-)
-7. Nested Comment Like(User, NestedComment will be foregin key)
+)✔
+7. Nested Comment Like(User, NestedComment will be foregin key)✔
 
 Views
 1. LoginView
@@ -51,3 +51,9 @@ Views
     request.user, nested-comment.id
 )
 
+During Registration User role will be as user
+
+1. Remove app name from database model-name
+    example:- base_likes should be likes
+2. Pagination
+3. Time of Post

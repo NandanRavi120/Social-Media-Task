@@ -20,28 +20,42 @@ class User(AbstractUser):
         return self.name
 
     class Meta:
+        db_table = "Users"
         ordering = ["id"]
         indexes = [models.Index(fields=["email"])]
 
 
-# User Role will be defined
 class Role(models.Model):
-    role = models.CharField(max_length=20)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
+    ROLE_CHOICES = [
+        ('admin', 'Admin'),
+        ('non-admin', 'Non-Admin'),
+    ]
+    roles = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    deleted_at = models.DateTimeField(null=True)
+
+    class Meta:
+        db_table = "Roles"
 
 
-# User's Role will be connect to User
 class UserRole(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    user_role = models.ForeignKey(Role, on_delete=models.CASCADE)
-    is_active = models.BooleanField(default=True)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
 
-# User's works according to role(Yes or No)
-class UserLog(models.Model):
+    class Meta:
+        db_table = "UserRoles"
+
+
+class UserRoleLog(models.Model):
     user_role = models.ForeignKey(UserRole, on_delete=models.CASCADE)
-    event_type = models.CharField(max_length=20)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+    deleted_at = models.DateTimeField(null=True)
+
+    class Meta:
+        db_table = "UserRoleLogs"
+
 
 
 class Post(models.Model):
@@ -58,6 +72,7 @@ class Post(models.Model):
         return self.note
 
     class Meta:
+        db_table = "Posts"
         ordering = ["id"]
         indexes = [models.Index(fields=["id"])]
 
@@ -68,6 +83,9 @@ class Likes(models.Model):
     counter = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     deleted_at = models.DateTimeField(null=True)
+
+    class Meta:
+        db_table = "Likes"
 
 
 
@@ -85,6 +103,7 @@ class Comment(models.Model):
         return self.content[:10]
 
     class Meta:
+        db_table = "Comments"
         ordering = ["id"]
         indexes = [models.Index(fields=["id", "parent"])]
 
@@ -100,7 +119,9 @@ class CommentLike(models.Model):
         return f"{self.user.name} liked {self.comment.content[:10]}"
 
     class Meta:
+        db_table = "Comment_Likes"
         ordering = ["id"]
         indexes = [models.Index(fields=["id", "comment"])]
+
 
 
