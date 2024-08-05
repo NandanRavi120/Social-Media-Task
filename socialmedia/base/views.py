@@ -8,6 +8,7 @@ from django.contrib.auth import login, authenticate, logout
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from .models import User, Post, Comment, Likes, CommentLike, Role, UserRole, UserRoleLog
+from .utils import encode_jwt
 import json
 
 # Create your views here.
@@ -104,6 +105,7 @@ class LoginView(View):
             user = authenticate(email=email, password=password)
 
             if user is not None:
+                # token = encode_jwt(user)
                 login(request, user)
                 return JsonResponse({"message": "Login successful"}, status=200)
             else:
@@ -111,7 +113,6 @@ class LoginView(View):
         except Exception as e:
             print("Error during login attempt:", e)
             return JsonResponse({"error": "An error occurred during login"}, status=500)
-
 
 # Post View
 @method_decorator(csrf_exempt, name="dispatch")
@@ -127,6 +128,7 @@ class PostView(View):
                         return JsonResponse({"message":"You are not allowed to view this POST!!"}, status=400)
                     data = {
                         "id": post.id,
+                        "user":post.user.id,
                         "note": post.note,
                         "caption": post.caption,
                         "tag": post.tag,
@@ -139,10 +141,10 @@ class PostView(View):
                 posts = Post.objects.filter(deleted_at=None).exclude(hidden_at__isnull=False).union(
                     Post.objects.filter(deleted_at=None, user=request.user, hidden_at__isnull=False)
                 )
-                paginator = Paginator(posts, 1)
+                paginator = Paginator(posts, 3)
                 page_number = request.GET.get("page")
                 page_objects = paginator.get_page(page_number)
-                data = [{"id": post.id, "note": post.note, "caption": post.caption, "tag": post.tag, "created_at": timesince(post.created_at)} for post in page_objects]
+                data = [{"id": post.id, "user":post.user.id, "note": post.note, "caption": post.caption, "tag": post.tag, "created_at": timesince(post.created_at)} for post in page_objects]
                 return JsonResponse(data, safe=False)
         else:
             if pk:
@@ -152,6 +154,7 @@ class PostView(View):
                         return JsonResponse({"error":"Post Unavailable"}, status=404)
                     data = {
                         "id": post.id,
+                        "user":post.user.id,
                         "note": post.note,
                         "caption": post.caption,
                         "tag": post.tag,
@@ -162,12 +165,11 @@ class PostView(View):
                     return JsonResponse({"error": "Post not Present"}, status=404)
             else:
                 posts = Post.objects.filter(hidden_at=None, deleted_at=None)
-                paginator = Paginator(posts, 1)
+                paginator = Paginator(posts, 3)
                 page_number = request.GET.get("page")
                 page_objects = paginator.get_page(page_number)
-                data = [{"id": post.id, "note": post.note, "caption": post.caption, "tag": post.tag, "created_at": timesince(post.created_at)} for post in page_objects]
+                data = [{"id": post.id, "user":post.user.id, "note": post.note, "caption": post.caption, "tag": post.tag, "created_at": timesince(post.created_at)} for post in page_objects]
                 return JsonResponse(data, safe=False)
-
 
     def post(self, request, pk=None):
         if not request.user.is_authenticated:
@@ -226,6 +228,7 @@ class PostView(View):
             return JsonResponse({"message":"Deleted Successfully!!"}, status=200)
         except Post.DoesNotExist:
             return JsonResponse({"error":"Post Not Found"}, status=404)
+
 
 
 # Post Like View
@@ -408,7 +411,6 @@ class CommentLikesView(View):
             if pk:
                 try:
                     commentlike = Comment.objects.get(pk=pk)
-                    print(commentlike)
                     if commentlike.deleted_at:
                         return JsonResponse({"error": "Comment Unavailable"}, status=404)
                     count = CommentLike.objects.filter(comment=pk, deleted_at=None).count()
@@ -448,9 +450,12 @@ class LogoutView(View):
         return JsonResponse({"message": "Get Method not allowed!!!"}, status=400)
 
     def post(self, request):
-        if not request.user.is_authenticated:
-            return JsonResponse({"error": "Please Login!!!"}, status=401)
+        try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"error": "Please Login!!!"}, status=401)
 
-        logout(request)
-        return JsonResponse({"message": "Logged out successfully"}, status=200)
+            logout(request)
+            return JsonResponse({"message": "Logged out successfully"}, status=200)
+        except Exception as e:
+            return JsonResponse({"message":e}, status=400)
 
