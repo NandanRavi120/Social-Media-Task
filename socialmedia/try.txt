@@ -34,29 +34,31 @@ Create, Update and Delete should be add in every part
 7. Nested Comment Like(User, NestedComment will be foregin key)✔
 
 Views
-1. LoginView
+1. LoginView✔
 2. AddPostView(
     if user is LoggedIn then user can do post with POST method
-)
+)✔
 3. AddLikeView(
     user should be LoggedIn and user can add like on post
-)
+)✔
 4. AddCommentView(
     LoggedIn user can add comment on post
-)
+)✔
 5. AddNestedCommentView(
     request.user, parent-comment.id
-)
+)✔
 6. AddNestedCommentLikeView(
     request.user, nested-comment.id
-)
+)✔
 
-During Registration User role will be as user
+During Registration User role will be as user✔
 
 1. Remove app name from database model-name
-    example:- base_likes should be likes
-2. Pagination
-3. Time of Post
+    example:- base_likes should be likes✔
+2. Pagination✔
+3. Time of Post✔
 
-PUT and POST combine, Validation(email), mobile number field in database,
+PUT and POST combine,
+Validation(email),✔ 
+mobile number field in database,✔
 single post have like and comment(nested comment all data) For GET method to all user

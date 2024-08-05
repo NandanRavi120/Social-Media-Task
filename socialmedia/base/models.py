@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.core.validators import RegexValidator
 from .manager import UserManager
 
 
@@ -7,6 +8,7 @@ from .manager import UserManager
 class User(AbstractUser):
     name = models.CharField(max_length=30)
     email = models.EmailField(max_length=100, unique=True)
+    mobile_number = models.IntegerField(null=True, blank=True)
     username = models.CharField(max_length=20, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

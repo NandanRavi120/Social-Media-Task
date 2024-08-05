@@ -9,7 +9,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from .models import User, Post, Comment, Likes, CommentLike, Role, UserRole, UserRoleLog
 from .utils import encode_jwt
-import json
+import json, re
 
 # Create your views here.
 
@@ -68,11 +68,16 @@ class RegisterView(View):
         
         name = data.get("name")
         email = data.get("email")
+        phone = data.get("phone")
         password = data.get("password")
         role = data.get("role", "non-admin")
 
-        if not name or not email or not password:
-            return JsonResponse({"error": "Name, Email, and Password are required"}, status=400)
+        email_regex = r"^[a-zA-Z][\w._]+@(gmail|yahoo|myyahoo)\.(com|in)$"
+        if not re.match(email_regex, email):
+            return JsonResponse({"error":"Email should be from gmail, yahoo, myyahoo and domain should be .com or .in"}, status=400)
+
+        if not name or not email or not password or not phone:
+            return JsonResponse({"error": "Name, Email, Mobile and Password are required"}, status=400)
 
         if User.objects.filter(email=email).exists():
             return JsonResponse({"error": "Email already registered"}, status=400)
@@ -80,7 +85,7 @@ class RegisterView(View):
         if role not in ['admin', 'non-admin']:
             return JsonResponse({"error": "Invalid role"}, status=400)
 
-        user = User.objects.create_user(name=name, email=email, password=password)
+        user = User.objects.create_user(name=name, email=email, mobile_number=phone, password=password)
         user.save()
 
         role_instance = Role.objects.create(roles=role)
@@ -388,6 +393,7 @@ class CommentsView(View):
             "parent": comment.parent.id if comment.parent else None
         }
         return JsonResponse(response_data, status=200)
+
 
     def delete(self, request, pk=None):
         if not request.user.is_authenticated:
