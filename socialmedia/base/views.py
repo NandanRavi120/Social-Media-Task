@@ -139,10 +139,10 @@ class PostView(View):
                 posts = Post.objects.filter(deleted_at=None).exclude(hidden_at__isnull=False).union(
                     Post.objects.filter(deleted_at=None, user=request.user, hidden_at__isnull=False)
                 )
-                # paginator = Paginator(posts, 1)
-                # page_number = request.GET.get("page")
-                # page_objects = paginator.get_page(page_number)
-                data = [{"id": post.id, "note": post.note, "caption": post.caption, "tag": post.tag, "created_at": timesince(post.created_at)} for post in posts]
+                paginator = Paginator(posts, 1)
+                page_number = request.GET.get("page")
+                page_objects = paginator.get_page(page_number)
+                data = [{"id": post.id, "note": post.note, "caption": post.caption, "tag": post.tag, "created_at": timesince(post.created_at)} for post in page_objects]
                 return JsonResponse(data, safe=False)
         else:
             if pk:
@@ -162,63 +162,12 @@ class PostView(View):
                     return JsonResponse({"error": "Post not Present"}, status=404)
             else:
                 posts = Post.objects.filter(hidden_at=None, deleted_at=None)
-                # paginator = Paginator(posts, 1)
-                # page_number = request.GET.get("page")
-                # page_objects = paginator.get_page(page_number)
-                data = [{"id": post.id, "note": post.note, "caption": post.caption, "tag": post.tag, "created_at": timesince(post.created_at)} for post in posts]
+                paginator = Paginator(posts, 1)
+                page_number = request.GET.get("page")
+                page_objects = paginator.get_page(page_number)
+                data = [{"id": post.id, "note": post.note, "caption": post.caption, "tag": post.tag, "created_at": timesince(post.created_at)} for post in page_objects]
                 return JsonResponse(data, safe=False)
 
-
-    # def get(self, request, pk=None):
-    #     if request.user.is_authenticated:
-    #         if pk:
-    #             try:
-    #                 post = Post.objects.get(pk=pk)
-    #                 if post.deleted_at:
-    #                     return JsonResponse({"error":"Post Unavailable"}, status=404)
-    #                 if post.hidden_at and post.user != request.user:
-    #                     return JsonResponse({"message":"You are not allowed to view this POST!!"}, status=400)
-    #                 data = {
-    #                     "id": post.id,
-    #                     "note": post.note,
-    #                     "caption": post.caption,
-    #                     "tag": post.tag,
-    #                 }
-    #                 return JsonResponse(data)
-    #             except Post.DoesNotExist:
-    #                 return JsonResponse({"error": "Post not Present"}, status=404)
-    #         else:
-    #             posts = Post.objects.filter(deleted_at=None).exclude(hidden_at__isnull=False).union(
-    #                 Post.objects.filter(deleted_at=None, user=request.user, hidden_at__isnull=False)
-    #             )
-    #             # paginator = Paginator(posts, 1)
-    #             # page_number = request.GET.get("page")
-    #             # page_objects = paginator.get_page(page_number)
-    #             data = [{"id": post.id, "note": post.note, "caption": post.caption, "tag": post.tag} for post in posts]
-    #             return JsonResponse(data, safe=False)
-    #     else:
-    #         if pk:
-    #             try:
-    #                 post = Post.objects.get(pk=pk)
-    #                 if post.hidden_at or post.deleted_at:
-    #                     return JsonResponse({"error":"Post Unavailable"}, status=404)
-    #                 data = {
-    #                     "id": post.id,
-    #                     "note": post.note,
-    #                     "caption": post.caption,
-    #                     "tag": post.tag,
-    #                 }
-    #                 return JsonResponse(data)
-    #             except Post.DoesNotExist:
-    #                 return JsonResponse({"error": "Post not Present"}, status=404)
-    #         else:
-    #             posts = Post.objects.filter(hidden_at=None, deleted_at=None)
-    #             # paginator = Paginator(posts, 1)
-    #             # page_number = request.GET.get("page")
-    #             # page_objects = paginator.get_page(page_number)
-
-    #             data = [{"id": post.id, "note": post.note, "caption": post.caption, "tag": post.tag} for post in posts]
-    #             return JsonResponse(data, safe=False)
 
     def post(self, request, pk=None):
         if not request.user.is_authenticated:
