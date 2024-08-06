@@ -90,8 +90,6 @@ class Likes(models.Model):
         db_table = "Likes"
 
 
-
-
 class Comment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)

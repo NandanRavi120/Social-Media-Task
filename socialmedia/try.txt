@@ -61,4 +61,4 @@ During Registration User role will be as user✔
 PUT and POST combine,
 Validation(email),✔ 
 mobile number field in database,✔
-single post have like and comment(nested comment all data) For GET method to all user
+single post have like and comment(nested comment all data) For GET method to all user ✔
