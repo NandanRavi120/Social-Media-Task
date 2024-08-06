@@ -136,7 +136,7 @@ class PostView(View):
                         "note": post.note,
                         "caption": post.caption,
                         "tag": post.tag,
-                        "created_at": timesince(post.created_at),
+                        "created_at": timesince(post.created_at) + "ago",
                         "likes": post.likes_set.count(),
                         "comments": [],
                     }
@@ -147,7 +147,7 @@ class PostView(View):
                             "id": comment.id,
                             "user": comment.user.id,
                             "content": comment.content,
-                            "created_at": timesince(comment.created_at),
+                            "created_at": timesince(comment.created_at)+" ago",
                             "likes": comment.comment_likes.count(),
                             "replies": [],
                         }
@@ -158,7 +158,7 @@ class PostView(View):
                                 "id": reply.id,
                                 "user": reply.user.id,
                                 "content": reply.content,
-                                "created_at": timesince(reply.created_at),
+                                "created_at": timesince(reply.created_at)+ " ago",
                                 "likes": reply.comment_likes.count(),
                             }
                             comment_data["replies"].append(reply_data)
@@ -178,7 +178,7 @@ class PostView(View):
                 page_objects = paginator.get_page(page_number)
                 data = [
                     {"id": post.id, "user": post.user.id, "note": post.note, "caption": post.caption, "tag": post.tag,
-                        "created_at": timesince(post.created_at),
+                        "created_at": timesince(post.created_at) +" ago",
                     } for post in page_objects
                 ]
                 return JsonResponse(data, safe=False)
@@ -194,7 +194,7 @@ class PostView(View):
                         "note": post.note,
                         "caption": post.caption,
                         "tag": post.tag,
-                        "created_at": timesince(post.created_at),
+                        "created_at": timesince(post.created_at)+" ago",
                         "likes": post.likes_set.count(),
                         "comments": [],
                     }
@@ -205,7 +205,7 @@ class PostView(View):
                             "id": comment.id,
                             "user": comment.user.id,
                             "content": comment.content,
-                            "created_at": timesince(comment.created_at),
+                            "created_at": timesince(comment.created_at)+ " ago",
                             "likes": comment.comment_likes.count(),
                             "replies": [],
                         }
@@ -216,7 +216,7 @@ class PostView(View):
                                 "id": reply.id,
                                 "user": reply.user.id,
                                 "content": reply.content,
-                                "created_at": timesince(reply.created_at),
+                                "created_at": timesince(reply.created_at)+ " ago",
                                 "likes": reply.comment_likes.count(),
                             }
                             comment_data["replies"].append(reply_data)
@@ -229,7 +229,7 @@ class PostView(View):
                 paginator = Paginator(posts, 20)
                 page_number = request.GET.get("page")
                 page_objects = paginator.get_page(page_number)
-                data = [{"id": post.id, "user":post.user.id, "note": post.note, "caption": post.caption, "tag": post.tag, "created_at": timesince(post.created_at)} for post in page_objects]
+                data = [{"id": post.id, "user":post.user.id, "note": post.note, "caption": post.caption, "tag": post.tag, "created_at": timesince(post.created_at)+" ago"} for post in page_objects]
                 return JsonResponse(data, safe=False)
             
     def post(self, request, pk=None):
@@ -256,6 +256,8 @@ class PostView(View):
                 return JsonResponse({"message": "Hidden Successfully!!"}, status=200)
             except Exception as e:
                 return JsonResponse({"error": e})
+        
+        # Post's edit and create should be done when there is an unique field present in Post model
         elif action == "create":
             try:
                 post = Post.objects.create(user=request.user, note=note, caption=caption, tag=tag)

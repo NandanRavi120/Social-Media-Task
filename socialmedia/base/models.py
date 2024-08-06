@@ -1,7 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.core.validators import RegexValidator
 from .manager import UserManager
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 
 # User will be created
@@ -59,7 +60,7 @@ class UserRoleLog(models.Model):
         db_table = "UserRoleLogs"
 
 
-
+# Post edit and create should be done when there is an unique field present in Post model
 class Post(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     note = models.TextField()
@@ -70,12 +71,22 @@ class Post(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True)
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'notifications', {
+                'type': 'send_notification',
+                'message': f'{self.user.name} has uploaded a new post.'
+            }
+        )
+
     def __str__(self):
         return self.note
 
     class Meta:
         db_table = "Posts"
-        ordering = ["id"]
+        ordering = ["-id"]
         indexes = [models.Index(fields=["id"])]
 
 
