@@ -127,10 +127,8 @@ class PostView(View):
             if pk:
                 try:
                     post = Post.objects.get(pk=pk)
-                    if post.deleted_at:
+                    if post.deleted_at and request.user != post.user:
                         return JsonResponse({"error": "Post Unavailable"}, status=404)
-                    if post.hidden_at and post.user != request.user:
-                        return JsonResponse({"message": "You are not allowed to view this POST!!"}, status=400)
                     
                     data = {
                         "id": post.id,
@@ -171,19 +169,15 @@ class PostView(View):
                 except Post.DoesNotExist:
                     return JsonResponse({"error": "Post not Present"}, status=404)
             else:
-                posts = Post.objects.filter(deleted_at=None).exclude(hidden_at__isnull=False).union(
-                    Post.objects.filter(deleted_at=None, user=request.user, hidden_at__isnull=False)
-                )
-                paginator = Paginator(posts, 3)
+                posts = Post.objects.filter(deleted_at=None).exclude(hidden_at__isnull=False)
+                # user_posts = posts.filter(user=request.user)
+                # other_posts = posts.exclude(user=request.user)
+                # combined_posts = user_posts.union(other_posts)
+                paginator = Paginator(posts, 20)
                 page_number = request.GET.get("page")
                 page_objects = paginator.get_page(page_number)
                 data = [
-                    {
-                        "id": post.id,
-                        "user": post.user.id,
-                        "note": post.note,
-                        "caption": post.caption,
-                        "tag": post.tag,
+                    {"id": post.id, "user": post.user.id, "note": post.note, "caption": post.caption, "tag": post.tag,
                         "created_at": timesince(post.created_at),
                     } for post in page_objects
                 ]
@@ -232,7 +226,7 @@ class PostView(View):
                     return JsonResponse({"error": "Post not Present"}, status=404)
             else:
                 posts = Post.objects.filter(hidden_at=None, deleted_at=None)
-                paginator = Paginator(posts, 3)
+                paginator = Paginator(posts, 20)
                 page_number = request.GET.get("page")
                 page_objects = paginator.get_page(page_number)
                 data = [{"id": post.id, "user":post.user.id, "note": post.note, "caption": post.caption, "tag": post.tag, "created_at": timesince(post.created_at)} for post in page_objects]
@@ -262,7 +256,6 @@ class PostView(View):
                 return JsonResponse({"message": "Hidden Successfully!!"}, status=200)
             except Exception as e:
                 return JsonResponse({"error": e})
-
         elif action == "create":
             try:
                 post = Post.objects.create(user=request.user, note=note, caption=caption, tag=tag)
@@ -270,7 +263,6 @@ class PostView(View):
                 return JsonResponse({"status": "Post Uploaded Successfully", "Uploaded_Item": context}, status=201)
             except Exception as e:
                 return JsonResponse({"status": "error", "message": e}, status=400)
-
         elif action == "edit":
             if pk is None:
                 return JsonResponse({"message": "Enter post id to edit!!"}, status=400)
@@ -285,55 +277,9 @@ class PostView(View):
                 return JsonResponse({"status": "success", "post_id": post.id})
             except Exception as e:
                 return JsonResponse({"status": "error", "message": e}, status=400)
-
         else:
             return JsonResponse({"error": "Invalid action"}, status=400)
 
-    # def post(self, request, pk=None):
-    #     if not request.user.is_authenticated:
-    #         return JsonResponse({"error": "Login First"}, status=401)
-    #     try:
-    #         data = json.loads(request.body)
-    #     except json.JSONDecodeError:
-    #         return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-    #     note = data.get("note")
-    #     caption = data.get("caption")
-    #     tag = data.get("tag")
-
-    #     if pk:
-    #         try:
-    #             post = Post.objects.get(pk=pk)
-    #             if post.user != request.user:
-    #                 return JsonResponse({"message":"You are not allowed to Edit this POST!!"}, status=400)
-    #             post.note = note
-    #             post.caption = caption
-    #             post.tag = tag
-    #             post.save()
-    #             return JsonResponse({"status": "success", "post_id": post.id})
-    #         except Exception as e:
-    #             return JsonResponse({"status": "error", "message": e}, status=400)
-    #     else:
-    #         try:
-    #             post = Post.objects.create(user=request.user, note=note, caption=caption, tag=tag)
-    #             context = {"POST Id":post.id, "created_at": post.created_at.strftime("%Y-%m-%d %H:%M:%S")}
-    #             return JsonResponse({"status": "Post Uploaded Successfully", "Uploaded_Item":context}, status=201)
-    #         except Exception as e:
-    #             return JsonResponse({"status": "error", "message" : e}, status=400)
-
-    # def put(self, request, pk=None):
-    #     if not request.user.is_authenticated:
-    #         return JsonResponse({"error": "Login First"}, status=401)
-    #     if pk is None:
-    #         return JsonResponse({"message":"Enter data which you want to make Private!!"}, status=400)
-    #     try:
-    #         post = Post.objects.get(pk=pk)
-    #         post.hidden_at = timezone.now()
-    #         post.save()
-    #         return JsonResponse({"message":"Hidden Successfully!!"}, status=200)
-    #     except Exception as e:
-    #         return JsonResponse({"error":e})
-            
 
     def delete(self, request, pk=None):
         if not request.user.is_authenticated:
