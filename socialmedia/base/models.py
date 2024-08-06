@@ -75,11 +75,13 @@ class Post(models.Model):
         super().save(*args, **kwargs)
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            'notifications', {
-                'type': 'send_notification',
-                'message': f'{self.user.name} has uploaded a new post.'
+            "notifications", {
+                "type": "send_notification",
+                "message": f"{self.user.name} has uploaded a new post.",
+                "exclude": [self.user.id]
             }
         )
+        
 
     def __str__(self):
         return self.note

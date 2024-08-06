@@ -127,7 +127,8 @@ class PostView(View):
             if pk:
                 try:
                     post = Post.objects.get(pk=pk)
-                    if post.deleted_at and request.user != post.user:
+                    # if post.deleted_at and request.user != post.user:
+                    if post.deleted_at:
                         return JsonResponse({"error": "Post Unavailable"}, status=404)
                     
                     data = {
