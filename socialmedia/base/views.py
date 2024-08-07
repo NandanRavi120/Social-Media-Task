@@ -82,7 +82,7 @@ class RegisterView(View):
         if User.objects.filter(email=email).exists():
             return JsonResponse({"error": "Email already registered"}, status=400)
 
-        if role not in ['admin', 'non-admin']:
+        if role not in ["admin", "non-admin"]:
             return JsonResponse({"error": "Invalid role"}, status=400)
 
         user = User.objects.create_user(name=name, email=email, mobile_number=phone, password=password)
@@ -122,117 +122,63 @@ class LoginView(View):
 # Post View
 @method_decorator(csrf_exempt, name="dispatch")
 class PostView(View):
+    def get_post_data(self, post):
+        data = {
+            "id": post.id,
+            "user": post.user.id,
+            "note": post.note,
+            "caption": post.caption,
+            "tag": post.tag,
+            "created_at": timesince(post.created_at) + "ago",
+            "likes": post.likes_set.count(),
+            "comments": self.get_comments(post),
+        }
+        return data
+
+    def get_comments(self, post):
+        return [
+            {
+                "id": comment.id,
+                "user": comment.user.id,
+                "content": comment.content,
+                "created_at": timesince(comment.created_at) + "ago",
+                "likes": comment.comment_likes.count(),
+                "replies": self.get_replies(comment),
+            }
+            for comment in Comment.objects.filter(post=post, deleted_at=None)
+        ]
+
+    def get_replies(self, comment):
+        return [
+            {
+                "id": reply.id,
+                "user": reply.user.id,
+                "content": reply.content,
+                "created_at": timesince(reply.created_at) + "ago",
+                "likes": reply.comment_likes.count(),
+            }
+            for reply in Comment.objects.filter(parent=comment, deleted_at=None)
+        ]
+
     def get(self, request, pk=None):
-        if request.user.is_authenticated:
-            if pk:
-                try:
-                    post = Post.objects.get(pk=pk)
-                    # if post.deleted_at and request.user != post.user:
-                    if post.deleted_at:
-                        return JsonResponse({"error": "Post Unavailable"}, status=404)
-                    
-                    data = {
-                        "id": post.id,
-                        "user": post.user.id,
-                        "note": post.note,
-                        "caption": post.caption,
-                        "tag": post.tag,
-                        "created_at": timesince(post.created_at) + "ago",
-                        "likes": post.likes_set.count(),
-                        "comments": [],
-                    }
-                    
-                    comments = Comment.objects.filter(post=post, deleted_at=None)
-                    for comment in comments:
-                        comment_data = {
-                            "id": comment.id,
-                            "user": comment.user.id,
-                            "content": comment.content,
-                            "created_at": timesince(comment.created_at)+" ago",
-                            "likes": comment.comment_likes.count(),
-                            "replies": [],
-                        }
-                        
-                        replies = Comment.objects.filter(parent=comment, deleted_at=None)
-                        for reply in replies:
-                            reply_data = {
-                                "id": reply.id,
-                                "user": reply.user.id,
-                                "content": reply.content,
-                                "created_at": timesince(reply.created_at)+ " ago",
-                                "likes": reply.comment_likes.count(),
-                            }
-                            comment_data["replies"].append(reply_data)
-                        
-                        data["comments"].append(comment_data)
-                    
-                    return JsonResponse(data)
-                except Post.DoesNotExist:
-                    return JsonResponse({"error": "Post not Present"}, status=404)
-            else:
-                posts = Post.objects.filter(deleted_at=None).exclude(hidden_at__isnull=False)
-                # user_posts = posts.filter(user=request.user)
-                # other_posts = posts.exclude(user=request.user)
-                # combined_posts = user_posts.union(other_posts)
-                paginator = Paginator(posts, 20)
-                page_number = request.GET.get("page")
-                page_objects = paginator.get_page(page_number)
-                data = [
-                    {"id": post.id, "user": post.user.id, "note": post.note, "caption": post.caption, "tag": post.tag,
-                        "created_at": timesince(post.created_at) +" ago",
-                    } for post in page_objects
-                ]
-                return JsonResponse(data, safe=False)
+        if not request.user.is_authenticated:
+            posts = Post.objects.filter(hidden_at=None, deleted_at=None)
         else:
-            if pk:
-                try:
-                    post = Post.objects.get(pk=pk)
-                    if post.hidden_at or post.deleted_at:
-                        return JsonResponse({"error":"Post Unavailable"}, status=404)
-                    data = {
-                        "id": post.id,
-                        "user": post.user.id,
-                        "note": post.note,
-                        "caption": post.caption,
-                        "tag": post.tag,
-                        "created_at": timesince(post.created_at)+" ago",
-                        "likes": post.likes_set.count(),
-                        "comments": [],
-                    }
-                    
-                    comments = Comment.objects.filter(post=post, deleted_at=None)
-                    for comment in comments:
-                        comment_data = {
-                            "id": comment.id,
-                            "user": comment.user.id,
-                            "content": comment.content,
-                            "created_at": timesince(comment.created_at)+ " ago",
-                            "likes": comment.comment_likes.count(),
-                            "replies": [],
-                        }
-                        
-                        replies = Comment.objects.filter(parent=comment, deleted_at=None)
-                        for reply in replies:
-                            reply_data = {
-                                "id": reply.id,
-                                "user": reply.user.id,
-                                "content": reply.content,
-                                "created_at": timesince(reply.created_at)+ " ago",
-                                "likes": reply.comment_likes.count(),
-                            }
-                            comment_data["replies"].append(reply_data)
-                        data["comments"].append(comment_data)
-                    return JsonResponse(data)
-                except Post.DoesNotExist:
-                    return JsonResponse({"error": "Post not Present"}, status=404)
-            else:
-                posts = Post.objects.filter(hidden_at=None, deleted_at=None)
-                paginator = Paginator(posts, 20)
-                page_number = request.GET.get("page")
-                page_objects = paginator.get_page(page_number)
-                data = [{"id": post.id, "user":post.user.id, "note": post.note, "caption": post.caption, "tag": post.tag, "created_at": timesince(post.created_at)+" ago"} for post in page_objects]
-                return JsonResponse(data, safe=False)
-            
+            posts = Post.objects.filter(deleted_at=None).exclude(hidden_at__isnull=False)
+
+        if pk:
+            try:
+                post = posts.get(pk=pk)
+                return JsonResponse(self.get_post_data(post))
+            except Post.DoesNotExist:
+                return JsonResponse({"error": "Post not Present"}, status=404)
+        else:
+            paginator = Paginator(posts, 20)
+            page_number = request.GET.get("page")
+            page_objects = paginator.get_page(page_number)
+            data = [self.get_post_data(post) for post in page_objects]
+            return JsonResponse(data, safe=False)
+
     def post(self, request, pk=None):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Login First"}, status=401)
@@ -283,7 +229,6 @@ class PostView(View):
         else:
             return JsonResponse({"error": "Invalid action"}, status=400)
 
-
     def delete(self, request, pk=None):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Login First"}, status=401)
@@ -324,58 +269,39 @@ class PostLikesView(View):
         data = json.loads(request.body)
         like_type = data.get("like_type")
         if like_type == "multiplelike":
-            return self.multipleLikes(request, data)
+            return self.multiple_likes(request, data)
         elif like_type == "singlelike":
-            pk = data.get("post_id")
-            return self.SingleLike(request, pk)
+            return self.single_like(request, data.get("post_id"))
         else:
-            return JsonResponse({"error":"An error occured here"}, status=400)
+            return JsonResponse({"error": "An error occurred"}, status=400)
 
-    # Multiple Likes in Post by User
-    def multipleLikes(self, request, data):
-        if not request.user.is_authenticated:
-            return JsonResponse({"error": "Login First"}, status=401)
+    def multiple_likes(self, request, data):
         pk = data.get("post_id")
         try:
             post = Post.objects.get(id=pk)
         except Post.DoesNotExist:
-            return JsonResponse({"error": "Post not found."}, status=404)
-        
+            return JsonResponse({"error": "Post not found"}, status=404)
         user = request.user
-        try:
-            like = Likes.objects.get(post=post, user=user, deleted_at=None)
-            if like.counter is None:
-                like.counter = 0
+        like, created = Likes.objects.get_or_create(post=post, user=user, defaults={"counter": 1})
+        if not created:
             like.counter += 1
-            message = "Like Updated"
-        except Likes.DoesNotExist:
-            like = Likes.objects.create(post=post, user=user, counter=1)
-            message = "Like Added"
         like.save()
         return JsonResponse({"message": "Like Added", "counter": like.counter}, status=200)
 
-    # Single Like in Post by User
-    def SingleLike(self, request, pk=None):
-        if not request.user.is_authenticated:
-            return JsonResponse({"error": "Login First"}, status=401)
-        if pk:
-            try:
-                post = Post.objects.get(pk=pk)
-                if post.deleted_at:
-                    return JsonResponse({"error": "Post Unavailable"}, status=404)
-                user = request.user.id
-                try:
-                    like = Likes.objects.get(user_id=user, post=post, deleted_at=None)
-                    if like.deleted_at is None:
-                        like.deleted_at = timezone.now()
-                        message = "Like Removed"
-                    like.save()
-                except Likes.DoesNotExist:
-                    like = Likes.objects.create(user_id=user, post=post)
-                    message = "Like Added"
-                return JsonResponse({"message": message}, status=200)
-            except Post.DoesNotExist:
-                return JsonResponse({"error": "Post not Present"}, status=404)
+    def single_like(self, request, pk):
+        try:
+            post = Post.objects.get(pk=pk)
+        except Post.DoesNotExist:
+            return JsonResponse({"error": "Post not Present"}, status=404)
+        user = request.user
+        like, created = Likes.objects.get_or_create(user=user, post=post, defaults={"deleted_at": None})
+        if created:
+            message = "Like Added"
+        else:
+            like.deleted_at = timezone.now() if like.deleted_at is None else None
+            message = "Like Removed" if like.deleted_at else "Like Added"
+        like.save()
+        return JsonResponse({"message": message}, status=200)
 
 
 # Comment View
