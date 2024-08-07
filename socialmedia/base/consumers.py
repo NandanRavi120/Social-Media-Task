@@ -1,7 +1,5 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 import json
-from channels.db import database_sync_to_async
-from base.models import User
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):
@@ -23,13 +21,9 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def send_notification(self, event):
         message = event['message']
-        exclude = event.get('exclude', [])
-
-        if await database_sync_to_async(User.objects.filter(id=self.user_id).exists)():
-            if self.user_id not in exclude:
-                await self.send(text_data=json.dumps({
-                    'message': message
-                }))
+        await self.send(text_data=json.dumps({
+            'message': message
+        }))
 
 
 

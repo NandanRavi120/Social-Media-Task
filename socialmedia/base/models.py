@@ -74,14 +74,14 @@ class Post(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         channel_layer = get_channel_layer()
-
-        async_to_sync(channel_layer.group_send)(
-            f"User_{self.user_id}", {
-                "type": "send_notification",
-                "message": f"{self.user.name} has uploaded a new post.",
-                "exclude": [self.user.id]
-            }
-        )
+        for user in User.objects.exclude(id=self.user.id):
+            async_to_sync(channel_layer.group_send)(
+                f"User_{user.id}",
+                {
+                    "type": "send_notification",
+                    "message": f"{self.user.name} has uploaded a new post."
+                }
+            )
         
 
     def __str__(self):
