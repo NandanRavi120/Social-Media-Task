@@ -61,6 +61,7 @@ class UserRoleLog(models.Model):
 
 
 # Post edit and create should be done when there is an unique field present in Post model
+
 class Post(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     note = models.TextField()
@@ -89,7 +90,7 @@ class Post(models.Model):
 
     class Meta:
         db_table = "Posts"
-        ordering = ["-id"]
+        ordering = ["-hidden_at", "-id"]
         indexes = [models.Index(fields=["id"])]
 
 
@@ -118,7 +119,7 @@ class Comment(models.Model):
 
     class Meta:
         db_table = "Comments"
-        ordering = ["id"]
+        ordering = ["-id"]
         indexes = [models.Index(fields=["id", "parent"])]
 
 

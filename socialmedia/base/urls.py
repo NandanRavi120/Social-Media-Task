@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import AssignRoleView, RegisterView, LoginView, PostView, LogoutView, PostLikesView, CommentsView, CommentLikesView
+from .views import ReceiveFromFlaskView, AssignRoleView, RegisterView, LoginView, PostView, LogoutView, PostLikesView, CommentsView, CommentLikesView
 
 
 urlpatterns = [
@@ -14,5 +14,6 @@ urlpatterns = [
     path('comments/', CommentsView.as_view(), name='comments'),
     path('comments/<int:pk>/', CommentsView.as_view(), name='comment'),
     path("comment-likes/<int:pk>/", CommentLikesView.as_view(), name="comment_likes"),
-
+    # path('webhook-data/', SendWebhookView.as_view(), name='post_webhook'),
+    path('receive/', ReceiveFromFlaskView.as_view(), name='receive_from_flask'),
 ]

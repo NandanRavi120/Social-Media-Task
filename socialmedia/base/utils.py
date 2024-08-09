@@ -6,7 +6,7 @@ from datetime import datetime
 from datetime import timedelta
 
 def encode_jwt(user):
-    expiration_time = datetime.now() + timedelta(minutes=2)
+    expiration_time = datetime.now() + timedelta(minutes=1)
     payload = {
         'user_id': user.id,
         'expiration_time':expiration_time.isoformat()
@@ -16,10 +16,11 @@ def encode_jwt(user):
 
 def decode_jwt(token):
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithm=["HS256"])
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=settings.JWT_ALGORITHM)
         user_id = payload.get('user_id')
         user = User.objects.get(id=user_id)
         return user
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, User.DoesNotExist):
-        return None
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, User.DoesNotExist) as e:
+        print(e)
+        
 

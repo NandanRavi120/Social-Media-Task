@@ -9,7 +9,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from .models import User, Post, Comment, Likes, CommentLike, Role, UserRole, UserRoleLog
 from .utils import encode_jwt
-import json, re
+import json, re, requests
 
 # Create your views here.
 
@@ -93,7 +93,6 @@ class RegisterView(View):
 
         UserRole.objects.create(user=user, role=role_instance)
         return JsonResponse({"message": "User registered successfully"}, status=201)
-        
     
 
 # Login View
@@ -110,14 +109,15 @@ class LoginView(View):
             user = authenticate(email=email, password=password)
 
             if user is not None:
-                # token = encode_jwt(user)
+                token = encode_jwt(user)
                 login(request, user)
-                return JsonResponse({"message": "Login successful"}, status=200)
+                return JsonResponse({"message": "Login successful", "token":token}, status=200)
             else:
                 return JsonResponse({"error": "Invalid credentials"}, status=401)
         except Exception as e:
             print("Error during login attempt:", e)
             return JsonResponse({"error": "An error occurred during login"}, status=500)
+
 
 # Post View
 @method_decorator(csrf_exempt, name="dispatch")
@@ -204,7 +204,6 @@ class PostView(View):
             except Exception as e:
                 return JsonResponse({"error": e})
         
-        # Post's edit and create should be done when there is an unique field present in Post model
         elif action == "create":
             try:
                 post = Post.objects.create(user=request.user, note=note, caption=caption, tag=tag)
@@ -241,7 +240,6 @@ class PostView(View):
             return JsonResponse({"message":"Deleted Successfully!!"}, status=200)
         except Post.DoesNotExist:
             return JsonResponse({"error":"Post Not Found"}, status=404)
-
 
 
 # Post Like View
@@ -327,56 +325,61 @@ class CommentsView(View):
     def post(self, request, pk=None):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Login First"}, status=401)
-        
+
         try:
             data = json.loads(request.body)
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, status=400)
 
         if pk is None:
-            post_id = data.get("post")
-            content = data.get("content")
-            parent_id = data.get("parent")
-
-            if parent_id:
-                try:
-                    parent_comment = Comment.objects.get(id=parent_id)
-                except Comment.DoesNotExist:
-                    return JsonResponse({"error": "Parent comment not found"}, status=404)
-            else:
-                parent_comment = None
-
-            comment = Comment.objects.create(user=request.user, post_id=post_id, content=content, parent=parent_comment)
-            response_data = {
-                "message": "Success!!",
-                "id": comment.id,
-                "post": comment.post.id, 
-                "content": comment.content,
-                "parent": comment.parent.id if comment.parent else None
-            }
-            return JsonResponse(response_data, status=201)
-
+            return self.create_comment(request, data)
         else:
+            return self.update_comment(request, pk, data)
+
+    def create_comment(self, request, data):
+        post_id = data.get("post")
+        content = data.get("content")
+        parent_id = data.get("parent")
+
+        if parent_id:
             try:
-                comment = Comment.objects.get(id=pk)
+                parent_comment = Comment.objects.get(id=parent_id)
             except Comment.DoesNotExist:
-                return JsonResponse({"error": "Comment not found"}, status=404)
+                return JsonResponse({"error": "Parent comment not found"}, status=404)
+        else:
+            parent_comment = None
 
-            if comment.user != request.user:
-                return JsonResponse({"error": "You don't have permission to update this comment"}, status=403)
+        comment = Comment.objects.create(user=request.user, post_id=post_id, content=content, parent=parent_comment)
+        response_data = {
+            "message": "Success!!",
+            "id": comment.id,
+            "post": comment.post.id,
+            "content": comment.content,
+            "parent": comment.parent.id if comment.parent else None
+        }
+        return JsonResponse(response_data, status=201)
 
-            content = data.get("content")
-            if content:
-                comment.content = content
-                comment.save()
-            response_data = {
-                "message": "Comment updated successfully",
-                "id": comment.id,
-                "post": comment.post.id,
-                "content": comment.content,
-                "parent": comment.parent.id if comment.parent else None
-            }
-            return JsonResponse(response_data, status=200)
+    def update_comment(self, request, pk, data):
+        try:
+            comment = Comment.objects.get(id=pk)
+        except Comment.DoesNotExist:
+            return JsonResponse({"error": "Comment not found"}, status=404)
+
+        if comment.user != request.user:
+            return JsonResponse({"error": "You don't have permission to update this comment"}, status=403)
+
+        content = data.get("content")
+        if content:
+            comment.content = content
+            comment.save()
+        response_data = {
+            "message": "Comment updated successfully",
+            "id": comment.id,
+            "post": comment.post.id,
+            "content": comment.content,
+            "parent": comment.parent.id if comment.parent else None
+        }
+        return JsonResponse(response_data, status=200)
 
 
     def delete(self, request, pk=None):
@@ -449,3 +452,27 @@ class LogoutView(View):
         except Exception as e:
             return JsonResponse({"message":e}, status=400)
 
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ReceiveFromFlaskView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        response_data = {
+            'received': data,
+            'status': 'success'
+        }
+        print(response_data)
+        user_id = data.get("user")
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return JsonResponse({"error": "User not found"}, status=404)
+        note = data.get("note")
+        caption = data.get("caption")
+        tag = data.get("tag")
+        Post.objects.create(user=user, note=note, caption=caption, tag=tag)
+        return JsonResponse(response_data, status=200)
