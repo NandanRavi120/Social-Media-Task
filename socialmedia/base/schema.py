@@ -1,26 +1,75 @@
-import graphene
+import graphene # type: ignore
 from graphene_django import DjangoObjectType # type: ignore
-from .models import Comment, Post, User
+from .models import Comment, User, Role, UserRole
 from datetime import timezone
+from django.contrib.auth import authenticate, login, logout
+import re
 
 class CommentType(DjangoObjectType):
     class Meta:
         model = Comment
         fields = "__all__"
 
+class Register(graphene.Mutation):
+    class Arguments:
+        name = graphene.String(required=True)
+        email = graphene.String(required=True)
+        phone = graphene.String(required=True)
+        password = graphene.String(required=True)
+        role = graphene.String()
 
-class Query(graphene.ObjectType):
-    comment = graphene.Field(CommentType, id=graphene.Int(required=True))
-    allComments = graphene.List(CommentType)
+    success = graphene.Boolean()
+    message = graphene.String()
 
-    def resolve_comment(self, info, id):
-        try:
-            return Comment.objects.get(id=id, deleted_at__isnull=True)
-        except Comment.DoesNotExist:
-            return None
+    def mutate(self, info, name, email, phone, password, role="non-admin"):
+        email_regex = r"^[a-zA-Z][\w._]+@(gmail|yahoo|myyahoo)\.(com|in)$"
+        if not re.match(email_regex, email):
+            return Register(success=False, message="Invalid email domain")
 
-    def resolve_allComments(self, info):
-        return Comment.objects.filter(deleted_at__isnull=True)
+        if User.objects.filter(email=email).exists():
+            return Register(success=False, message="Email already registered")
+
+        if role not in ["admin", "non-admin"]:
+            return Register(success=False, message="Invalid role")
+
+        user = User.objects.create_user(name=name, email=email, mobile_number=phone, password=password)
+        role_instance = Role.objects.create(roles=role)
+        UserRole.objects.create(user=user, role=role_instance)
+        
+        return Register(success=True, message="User registered successfully")
+
+
+class Login(graphene.Mutation):
+    class Arguments:
+        email = graphene.String(required=True)
+        password = graphene.String(required=True)
+
+    success = graphene.Boolean()
+    message = graphene.String()
+
+    def mutate(self, info, email, password):
+        user = authenticate(email=email, password=password)
+
+        if user is not None:
+            login(info.context, user)
+            return Login(success=True, message="Login successful")
+        else:
+            return Login(success=False, message="Invalid credentials")
+
+
+
+class Logout(graphene.Mutation):
+    success = graphene.Boolean()
+    message = graphene.String()
+
+    def mutate(self, info):
+        user = info.context.user
+
+        if not user.is_authenticated:
+            return Logout(success=False, message="User not authenticated")
+
+        logout(info.context)
+        return Logout(success=True, message="Logged out successfully")
 
 
 class CreateComment(graphene.Mutation):
@@ -95,9 +144,25 @@ class DeleteComment(graphene.Mutation):
 
 
 class Mutation(graphene.ObjectType):
+    register = Register.Field()
+    login = Login.Field()
+    logout = Logout.Field()
     create_comment = CreateComment.Field()
     update_comment = UpdateComment.Field()
     delete_comment = DeleteComment.Field()
+
+class Query(graphene.ObjectType):
+    comment = graphene.Field(CommentType, id=graphene.Int(required=True))
+    allComments = graphene.List(CommentType)
+
+    def resolve_comment(self, info, id):
+        try:
+            return Comment.objects.get(id=id, deleted_at__isnull=True)
+        except Comment.DoesNotExist:
+            return None
+
+    def resolve_allComments(self, info):
+        return Comment.objects.filter(deleted_at__isnull=True)
 
 schema = graphene.Schema(query=Query, mutation=Mutation)
 
