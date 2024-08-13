@@ -1,13 +1,12 @@
 import graphene, re # type: ignore
 from graphene_django import DjangoObjectType # type: ignore
-from graphene import Field, Int, List, Boolean # type: ignore
+from .models import Comment, CommentLike, User, Role, UserRole, Post, Likes
+from datetime import timezone
 from django.contrib.auth import authenticate, login, logout
 from django.core.paginator import Paginator
-from .models import Comment, CommentLike, User, Role, UserRole, Post, Likes
-from .utils import encode_jwt
-from django.utils import timezone
+from graphene import Field, Int, List, Boolean # type: ignore
 
-# Existing DjangoObjectTypes
+
 class PostType(DjangoObjectType):
     class Meta:
         model = Post
@@ -22,7 +21,6 @@ class CommentLikeType(DjangoObjectType):
         model = CommentLike
         fields = "__all__"
 
-# PageInfoType for pagination
 class PageInfoType(graphene.ObjectType):
     page = Field(Int)
     total_pages = Field(Int)
@@ -69,16 +67,13 @@ class Login(graphene.Mutation):
 
     success = graphene.Boolean()
     message = graphene.String()
-    token = graphene.String()
 
     def mutate(self, info, email, password):
         user = authenticate(email=email, password=password)
 
         if user is not None:
-            token = encode_jwt(user)
             login(info.context, user)
-            print(token)
-            return Login(success=True, message="Login successful", token=token)
+            return Login(success=True, message="Login successful")
         else:
             return Login(success=False, message="Invalid credentials")
 
@@ -200,57 +195,6 @@ class LikeComment(graphene.Mutation):
 
         except Comment.DoesNotExist:
             raise Exception("Comment not Present")
-
-
-class LikePost(graphene.Mutation):
-    class Arguments:
-        post_id = graphene.Int(required=True)
-        like_type = graphene.String(required=True)  # 'singlelike' or 'multiplelike'
-
-    message = graphene.String()
-    counter = graphene.Int()
-
-    def mutate(self, info, post_id, like_type):
-        user = info.context.user
-
-        if not user.is_authenticated:
-            raise Exception("Login required")
-
-        if like_type == "multiplelike":
-            return self.handle_multiple_likes(info, post_id)
-        elif like_type == "singlelike":
-            return self.handle_single_like(info, post_id)
-        else:
-            raise Exception("Invalid like_type")
-
-    def handle_multiple_likes(self, info, post_id):
-        try:
-            post = Post.objects.get(id=post_id)
-        except Post.DoesNotExist:
-            raise Exception("Post not found")
-
-        user = info.context.user
-        like, created = Likes.objects.get_or_create(post=post, user=user, defaults={"counter": 1})
-        if not created:
-            like.counter += 1
-        like.save()
-        return LikePost(message="Like Added", counter=like.counter)
-
-    def handle_single_like(self, info, post_id):
-        try:
-            post = Post.objects.get(pk=post_id)
-        except Post.DoesNotExist:
-            raise Exception("Post not Present")
-
-        user = info.context.user
-        like, created = Likes.objects.get_or_create(user=user, post=post, defaults={"deleted_at": None})
-        if created:
-            message = "Like Added"
-        else:
-            like.deleted_at = timezone.now() if like.deleted_at is None else None
-            message = "Like Removed" if like.deleted_at else "Like Added"
-        like.save()
-        return LikePost(message=message, counter=like.counter if not created else 1)
 
 
 class CreatePost(graphene.Mutation):
@@ -404,6 +348,8 @@ class Query(graphene.ObjectType):
         except Comment.DoesNotExist:
             raise Exception("Comment not Present")
 
+
+
 # Mutation class that combines all mutations
 class Mutation(graphene.ObjectType):
     register = Register.Field()
@@ -413,10 +359,12 @@ class Mutation(graphene.ObjectType):
     update_comment = UpdateComment.Field()
     delete_comment = DeleteComment.Field()
     like_comment = LikeComment.Field()
-    like_post = LikePost.Field()
     create_post = CreatePost.Field()
     edit_post = EditPost.Field()
     hide_post = HidePost.Field()
     delete_post = DeletePost.Field()
-
 schema = graphene.Schema(query=Query, mutation=Mutation)
+
+
+
+

@@ -21,37 +21,37 @@ class AssignRoleView(View):
             raise PermissionDenied("You are not authorized to assign roles.")
         
         data = json.loads(request.body)
-        user_id = data.get('user_id')
-        role_name = data.get('role')
+        user_id = data.get("user_id")
+        role_name = data.get("role")
         
         try:
             user = User.objects.get(pk=user_id)
             role = Role.objects.get(roles=role_name)
         except User.DoesNotExist:
-            return JsonResponse({'error': 'User not found'}, status=404)
+            return JsonResponse({"error": "User not found"}, status=404)
         except Role.DoesNotExist:
-            return JsonResponse({'error': 'Role not found'}, status=404)
+            return JsonResponse({"error": "Role not found"}, status=404)
         
         user_role = UserRole.objects.create(user=user, role=role)
-        UserRoleLog.objects.create(user_role=user_role, status='active')
+        UserRoleLog.objects.create(user_role=user_role, status="active")
         
-        return JsonResponse({'message': 'Role assigned successfully'}, status=201)
+        return JsonResponse({"message": "Role assigned successfully"}, status=201)
     
     def put(self, request):
         if not request.user.is_superuser:
             raise PermissionDenied("You are not authorized to change role status.")
         
         data = json.loads(request.body)
-        user_role_id = data.get('user_role_id')
-        new_status = data.get('status')
+        user_role_id = data.get("user_role_id")
+        new_status = data.get("status")
         
         try:
             user_role = UserRole.objects.get(pk=user_role_id)
         except UserRole.DoesNotExist:
-            return JsonResponse({'error': 'UserRole not found'}, status=404)
+            return JsonResponse({"error": "UserRole not found"}, status=404)
         
         user_role_log = UserRoleLog.objects.create(user_role=user_role, status=new_status)
-        return JsonResponse({'message': 'Role status updated successfully'}, status=200)
+        return JsonResponse({"message": "Role status updated successfully"}, status=200)
 
 
 # Register View
@@ -462,8 +462,8 @@ class ReceiveFromFlaskView(View):
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, status=400)
         response_data = {
-            'received': data,
-            'status': 'success'
+            "received": data,
+            "status": "success"
         }
         print(response_data)
         user_id = data.get("user")
