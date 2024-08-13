@@ -67,4 +67,27 @@ single post have like and comment(nested comment all data) For GET method to all
 
 Django Channels where a User upload's post then notification sent to another user also✔
 
-Webhook fetch from django app with flask
+Webhook fetch from django app with flask✔
+
+Graphql✔
+# GraphQL query for pagination of post
+query AllPosts($page: Int = 3, $pageSize: Int = 20) {
+    allPosts(page: $page, pageSize: $pageSize) {
+        posts {
+            id
+            note
+            caption
+            tag
+            hiddenAt
+            createdAt
+            updatedAt
+            deletedAt
+        }
+        pageInfo {
+            page
+            totalPages
+            hasNextPage
+            hasPreviousPage
+        }
+    }
+}

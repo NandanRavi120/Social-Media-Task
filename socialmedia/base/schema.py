@@ -339,11 +339,6 @@ class Query(graphene.ObjectType):
             ),
         )
 
-    # def resolve_all_posts(self, info):
-    #     if not info.context.user.is_authenticated:
-    #         return Post.objects.filter(hidden_at=None, deleted_at=None)
-    #     return Post.objects.filter(deleted_at=None).exclude(hidden_at__isnull=False)
-
     def resolve_like_count(self, info, comment_id):
         try:
             comment = Comment.objects.get(pk=comment_id)
