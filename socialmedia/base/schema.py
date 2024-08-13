@@ -6,6 +6,10 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from .models import Comment, CommentLike, User, Role, UserRole, Post, Likes
 from .utils import encode_jwt
+from .decorators import AuthenticatedRequired
+
+
+authentication_required = AuthenticatedRequired()
 
 # Existing DjangoObjectTypes
 class PostType(DjangoObjectType):
@@ -37,10 +41,6 @@ class AllPostsType(graphene.ObjectType):
 def validate_email(email):
     email_regex = r"^[a-zA-Z][\w._]+@(gmail|yahoo|myyahoo)\.(com|in)$"
     return re.match(email_regex, email)
-
-def check_user_authenticated(user):
-    if not user.is_authenticated:
-        raise Exception("Authentication required!")
 
 def get_post(pk):
     try:
@@ -104,9 +104,10 @@ class Logout(graphene.Mutation):
     success = graphene.Boolean()
     message = graphene.String()
 
+    @authentication_required
     def mutate(self, info):
         user = info.context.user
-        check_user_authenticated(user)
+        # check_user_authenticated(user)
         logout(info.context)
         return Logout(success=True, message="Logged out successfully")
 
@@ -119,10 +120,9 @@ class CreateComment(graphene.Mutation):
 
     comment = graphene.Field(CommentType)
 
+    @authentication_required
     def mutate(self, info, post_id, content, parent_id=None):
         user = info.context.user
-        check_user_authenticated(user)
-
         parent_comment = get_comment(parent_id) if parent_id else None
         comment = Comment.objects.create(user=user, post_id=post_id, content=content, parent=parent_comment)
         return CreateComment(comment=comment)
@@ -154,9 +154,9 @@ class DeleteComment(graphene.Mutation):
 
     success = graphene.Boolean()
 
+    @authentication_required
     def mutate(self, info, id):
         user = info.context.user
-        check_user_authenticated(user)
 
         comment = get_comment(id)
         comment.deleted_at = timezone.now()
@@ -170,9 +170,9 @@ class LikeComment(graphene.Mutation):
 
     message = graphene.String()
 
+    @authentication_required
     def mutate(self, info, comment_id):
         user = info.context.user
-        check_user_authenticated(user)
 
         comment = get_comment(comment_id)
         if comment.deleted_at:
@@ -198,9 +198,9 @@ class LikePost(graphene.Mutation):
     message = graphene.String()
     counter = graphene.Int()
 
+    @authentication_required
     def mutate(self, info, post_id, like_type):
         user = info.context.user
-        check_user_authenticated(user)
 
         post = get_post(post_id)
 
@@ -232,9 +232,9 @@ class CreatePost(graphene.Mutation):
 
     post = graphene.Field(PostType)
 
+    @authentication_required
     def mutate(self, info, note, caption, tag):
         user = info.context.user
-        check_user_authenticated(user)
 
         post = Post.objects.create(user=user, note=note, caption=caption, tag=tag)
         return CreatePost(post=post)
@@ -272,9 +272,9 @@ class HidePost(graphene.Mutation):
 
     success = graphene.Boolean()
 
+    @authentication_required
     def mutate(self, info, id):
         user = info.context.user
-        check_user_authenticated(user)
 
         post = get_post(id)
         if post.user != user:
@@ -291,9 +291,9 @@ class DeletePost(graphene.Mutation):
 
     success = graphene.Boolean()
 
+    @authentication_required
     def mutate(self, info, id):
         user = info.context.user
-        check_user_authenticated(user)
 
         post = get_post(id)
         post.deleted_at = timezone.now()
