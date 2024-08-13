@@ -3,9 +3,9 @@ from graphene_django import DjangoObjectType # type: ignore
 from graphene import Field, Int, List, Boolean # type: ignore
 from django.contrib.auth import authenticate, login, logout
 from django.core.paginator import Paginator
-from django.utils import timezone
 from .models import Comment, CommentLike, User, Role, UserRole, Post, Likes
 from .utils import encode_jwt
+from django.utils import timezone
 
 # Existing DjangoObjectTypes
 class PostType(DjangoObjectType):
@@ -33,28 +33,7 @@ class AllPostsType(graphene.ObjectType):
     posts = List(PostType)
     page_info = Field(PageInfoType)
 
-# Utility functions
-def validate_email(email):
-    email_regex = r"^[a-zA-Z][\w._]+@(gmail|yahoo|myyahoo)\.(com|in)$"
-    return re.match(email_regex, email)
-
-def check_user_authenticated(user):
-    if not user.is_authenticated:
-        raise Exception("Authentication required!")
-
-def get_post(pk):
-    try:
-        return Post.objects.get(pk=pk)
-    except Post.DoesNotExist:
-        raise Exception("Post not found")
-
-def get_comment(pk):
-    try:
-        return Comment.objects.get(pk=pk)
-    except Comment.DoesNotExist:
-        raise Exception("Comment not found")
-
-# Register Mutations
+# Mutations
 class Register(graphene.Mutation):
     class Arguments:
         name = graphene.String(required=True)
@@ -67,7 +46,8 @@ class Register(graphene.Mutation):
     message = graphene.String()
 
     def mutate(self, info, name, email, phone, password, role="non-admin"):
-        if not validate_email(email):
+        email_regex = r"^[a-zA-Z][\w._]+@(gmail|yahoo|myyahoo)\.(com|in)$"
+        if not re.match(email_regex, email):
             return Register(success=False, message="Invalid email domain")
 
         if User.objects.filter(email=email).exists():
@@ -81,7 +61,7 @@ class Register(graphene.Mutation):
         UserRole.objects.create(user=user, role=role_instance)
         return Register(success=True, message="User registered successfully")
 
-# Login Mutations
+
 class Login(graphene.Mutation):
     class Arguments:
         email = graphene.String(required=True)
@@ -93,24 +73,30 @@ class Login(graphene.Mutation):
 
     def mutate(self, info, email, password):
         user = authenticate(email=email, password=password)
-        if user:
+
+        if user is not None:
             token = encode_jwt(user)
             login(info.context, user)
+            print(token)
             return Login(success=True, message="Login successful", token=token)
-        return Login(success=False, message="Invalid credentials")
+        else:
+            return Login(success=False, message="Invalid credentials")
 
-# Logout Mutations
+
 class Logout(graphene.Mutation):
     success = graphene.Boolean()
     message = graphene.String()
 
     def mutate(self, info):
         user = info.context.user
-        check_user_authenticated(user)
+
+        if not user.is_authenticated:
+            return Logout(success=False, message="User not authenticated")
+
         logout(info.context)
         return Logout(success=True, message="Logged out successfully")
 
-# CreateComment Mutation
+
 class CreateComment(graphene.Mutation):
     class Arguments:
         post_id = graphene.Int(required=True)
@@ -121,13 +107,22 @@ class CreateComment(graphene.Mutation):
 
     def mutate(self, info, post_id, content, parent_id=None):
         user = info.context.user
-        check_user_authenticated(user)
 
-        parent_comment = get_comment(parent_id) if parent_id else None
+        if not user.is_authenticated:
+            raise Exception("Authentication required!")
+
+        if parent_id:
+            try:
+                parent_comment = Comment.objects.get(id=parent_id)
+            except Comment.DoesNotExist:
+                raise Exception("Parent comment not found")
+        else:
+            parent_comment = None
+
         comment = Comment.objects.create(user=user, post_id=post_id, content=content, parent=parent_comment)
         return CreateComment(comment=comment)
 
-# UpdateComment Mutation
+
 class UpdateComment(graphene.Mutation):
     class Arguments:
         id = graphene.Int(required=True)
@@ -137,7 +132,12 @@ class UpdateComment(graphene.Mutation):
 
     def mutate(self, info, id, content):
         user = info.context.user
-        comment = get_comment(id)
+
+        try:
+            comment = Comment.objects.get(id=id)
+        except Comment.DoesNotExist:
+            raise Exception("Comment not found")
+
         if comment.user != user:
             raise Exception("You don't have permission to update this comment")
 
@@ -147,7 +147,7 @@ class UpdateComment(graphene.Mutation):
 
         return UpdateComment(comment=comment)
 
-# DeleteComment Mutation
+
 class DeleteComment(graphene.Mutation):
     class Arguments:
         id = graphene.Int(required=True)
@@ -156,14 +156,20 @@ class DeleteComment(graphene.Mutation):
 
     def mutate(self, info, id):
         user = info.context.user
-        check_user_authenticated(user)
 
-        comment = get_comment(id)
+        if not user.is_authenticated:
+            raise Exception("Authentication required!")
+
+        try:
+            comment = Comment.objects.get(pk=id)
+        except Comment.DoesNotExist:
+            raise Exception("Comment not found")
+
         comment.deleted_at = timezone.now()
         comment.save()
         return DeleteComment(success=True)
 
-# LikeComment Mutation
+
 class LikeComment(graphene.Mutation):
     class Arguments:
         comment_id = graphene.Int(required=True)
@@ -172,24 +178,30 @@ class LikeComment(graphene.Mutation):
 
     def mutate(self, info, comment_id):
         user = info.context.user
-        check_user_authenticated(user)
 
-        comment = get_comment(comment_id)
-        if comment.deleted_at:
-            raise Exception("Comment Unavailable")
+        if not user.is_authenticated:
+            raise Exception("Login required")
 
         try:
-            like = CommentLike.objects.get(user=user, comment=comment, deleted_at=None)
-            if like.deleted_at is None:
-                like.deleted_at = timezone.now()
-                message = "Like Removed"
-            like.save()
-        except CommentLike.DoesNotExist:
-            CommentLike.objects.create(user=user, comment=comment)
-            message = "Like Added"
-        return LikeComment(message=message)
+            comment = Comment.objects.get(pk=comment_id)
+            if comment.deleted_at:
+                raise Exception("Comment Unavailable")
 
-# LikePost Mutation
+            try:
+                like = CommentLike.objects.get(user=user, comment=comment, deleted_at=None)
+                if like.deleted_at is None:
+                    like.deleted_at = timezone.now()
+                    message = "Like Removed"
+                like.save()
+            except CommentLike.DoesNotExist:
+                CommentLike.objects.create(user=user, comment=comment)
+                message = "Like Added"
+            return LikeComment(message=message)
+
+        except Comment.DoesNotExist:
+            raise Exception("Comment not Present")
+
+
 class LikePost(graphene.Mutation):
     class Arguments:
         post_id = graphene.Int(required=True)
@@ -200,30 +212,47 @@ class LikePost(graphene.Mutation):
 
     def mutate(self, info, post_id, like_type):
         user = info.context.user
-        check_user_authenticated(user)
 
-        post = get_post(post_id)
+        if not user.is_authenticated:
+            raise Exception("Login required")
 
         if like_type == "multiplelike":
-            like, created = Likes.objects.get_or_create(post=post, user=user, defaults={"counter": 1})
-            if not created:
-                like.counter += 1
-            like.save()
-            return LikePost(message="Like Added", counter=like.counter)
+            return self.handle_multiple_likes(info, post_id)
+        elif like_type == "singlelike":
+            return self.handle_single_like(info, post_id)
+        else:
+            raise Exception("Invalid like_type")
 
-        if like_type == "singlelike":
-            like, created = Likes.objects.get_or_create(user=user, post=post, defaults={"deleted_at": None})
-            if created:
-                message = "Like Added"
-            else:
-                like.deleted_at = timezone.now() if like.deleted_at is None else None
-                message = "Like Removed" if like.deleted_at else "Like Added"
-            like.save()
-            return LikePost(message=message, counter=like.counter if not created else 1)
+    def handle_multiple_likes(self, info, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            raise Exception("Post not found")
 
-        raise Exception("Invalid like_type")
+        user = info.context.user
+        like, created = Likes.objects.get_or_create(post=post, user=user, defaults={"counter": 1})
+        if not created:
+            like.counter += 1
+        like.save()
+        return LikePost(message="Like Added", counter=like.counter)
 
-# CreatePost Mutation
+    def handle_single_like(self, info, post_id):
+        try:
+            post = Post.objects.get(pk=post_id)
+        except Post.DoesNotExist:
+            raise Exception("Post not Present")
+
+        user = info.context.user
+        like, created = Likes.objects.get_or_create(user=user, post=post, defaults={"deleted_at": None})
+        if created:
+            message = "Like Added"
+        else:
+            like.deleted_at = timezone.now() if like.deleted_at is None else None
+            message = "Like Removed" if like.deleted_at else "Like Added"
+        like.save()
+        return LikePost(message=message, counter=like.counter if not created else 1)
+
+
 class CreatePost(graphene.Mutation):
     class Arguments:
         note = graphene.String(required=True)
@@ -234,12 +263,14 @@ class CreatePost(graphene.Mutation):
 
     def mutate(self, info, note, caption, tag):
         user = info.context.user
-        check_user_authenticated(user)
+
+        if not user.is_authenticated:
+            raise Exception("Authentication required")
 
         post = Post.objects.create(user=user, note=note, caption=caption, tag=tag)
         return CreatePost(post=post)
 
-# EditPost Mutation
+
 class EditPost(graphene.Mutation):
     class Arguments:
         id = graphene.Int(required=True)
@@ -251,7 +282,12 @@ class EditPost(graphene.Mutation):
 
     def mutate(self, info, id, note=None, caption=None, tag=None):
         user = info.context.user
-        post = get_post(id)
+
+        try:
+            post = Post.objects.get(pk=id)
+        except Post.DoesNotExist:
+            raise Exception("Post not found")
+
         if post.user != user:
             raise Exception("You don't have permission to edit this post")
 
@@ -265,7 +301,7 @@ class EditPost(graphene.Mutation):
         post.save()
         return EditPost(post=post)
 
-# HidePost Mutation
+
 class HidePost(graphene.Mutation):
     class Arguments:
         id = graphene.Int(required=True)
@@ -274,9 +310,15 @@ class HidePost(graphene.Mutation):
 
     def mutate(self, info, id):
         user = info.context.user
-        check_user_authenticated(user)
 
-        post = get_post(id)
+        if not user.is_authenticated:
+            raise Exception("Authentication required")
+
+        try:
+            post = Post.objects.get(pk=id)
+        except Post.DoesNotExist:
+            raise Exception("Post not found")
+
         if post.user != user:
             raise Exception("You don't have permission to hide this post")
 
@@ -284,7 +326,7 @@ class HidePost(graphene.Mutation):
         post.save()
         return HidePost(success=True)
 
-# DeletePost Mutation
+
 class DeletePost(graphene.Mutation):
     class Arguments:
         id = graphene.Int(required=True)
@@ -293,9 +335,15 @@ class DeletePost(graphene.Mutation):
 
     def mutate(self, info, id):
         user = info.context.user
-        check_user_authenticated(user)
 
-        post = get_post(id)
+        if not user.is_authenticated:
+            raise Exception("Authentication required")
+
+        try:
+            post = Post.objects.get(pk=id)
+        except Post.DoesNotExist:
+            raise Exception("Post not found")
+
         post.deleted_at = timezone.now()
         post.save()
         return DeletePost(success=True)
@@ -309,13 +357,19 @@ class Query(graphene.ObjectType):
     like_count = graphene.Int(comment_id=graphene.Int(required=True))
 
     def resolve_comment(self, info, id):
-        return Comment.objects.filter(id=id, deleted_at__isnull=True).first()
+        try:
+            return Comment.objects.get(id=id, deleted_at__isnull=True)
+        except Comment.DoesNotExist:
+            return None
 
     def resolve_allComments(self, info):
         return Comment.objects.filter(deleted_at__isnull=True)
 
     def resolve_post(self, info, id):
-        return Post.objects.filter(pk=id, deleted_at__isnull=True).first()
+        try:
+            return Post.objects.get(pk=id, deleted_at__isnull=True)
+        except Post.DoesNotExist:
+            return None
 
     def resolve_all_posts(self, info, page=1, page_size=20):
         if not info.context.user.is_authenticated:
@@ -342,10 +396,13 @@ class Query(graphene.ObjectType):
         )
 
     def resolve_like_count(self, info, comment_id):
-        comment = get_comment(comment_id)
-        if comment.deleted_at:
-            raise Exception("Comment Unavailable")
-        return CommentLike.objects.filter(comment=comment, deleted_at=None).count()
+        try:
+            comment = Comment.objects.get(pk=comment_id)
+            if comment.deleted_at:
+                raise Exception("Comment Unavailable")
+            return CommentLike.objects.filter(comment=comment, deleted_at=None).count()
+        except Comment.DoesNotExist:
+            raise Exception("Comment not Present")
 
 # Mutation class that combines all mutations
 class Mutation(graphene.ObjectType):
