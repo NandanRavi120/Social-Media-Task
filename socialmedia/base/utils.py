@@ -1,7 +1,7 @@
 # jwt_utils.py
-import jwt
+import jwt, re
 from django.conf import settings
-from .models import User
+from .models import User, Comment, Post
 from datetime import datetime, timedelta
 
 def encode_jwt(user):
@@ -23,3 +23,21 @@ def decode_jwt(token):
         return None
     except (jwt.InvalidTokenError, User.DoesNotExist) as e:
         print(e)
+
+
+# Utility functions
+def validate_email(email):
+    email_regex = r"^[a-zA-Z][\w._]+@(gmail|yahoo|myyahoo)\.(com|in)$"
+    return re.match(email_regex, email)
+
+def get_post(pk):
+    try:
+        return Post.objects.get(pk=pk)
+    except Post.DoesNotExist:
+        raise Exception("Post not found")
+
+def get_comment(pk):
+    try:
+        return Comment.objects.get(pk=pk)
+    except Comment.DoesNotExist:
+        raise Exception("Comment not found")
