@@ -1,6 +1,6 @@
 import graphene# type: ignore
-from graphene_django import DjangoObjectType # type: ignore
-from graphene import Field, Int, List, Boolean # type: ignore
+from graphene import Field, Int # type: ignore
+from graphene_django.debug import DjangoDebug # type: ignore
 from django.core.paginator import Paginator
 from .models import Comment, CommentLike, Post
 from .utils import get_comment
@@ -15,6 +15,7 @@ class Query(graphene.ObjectType):
     post = graphene.Field(PostType, id=graphene.Int(required=True))
     all_posts = Field(AllPostsType, page=Int(default_value=1), page_size=Int(default_value=20))
     like_count = graphene.Int(comment_id=graphene.Int(required=True))
+    debug = graphene.Field(DjangoDebug, name='_debug')
 
     def resolve_comment(self, info, id):
         return Comment.objects.filter(id=id, deleted_at__isnull=True).first()
